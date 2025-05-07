@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "612956616408",
+    "project_id": "visca-face",
+    "storage_bucket": "visca-face.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:612956616408:android:e91b1576fb3082e83289ad",
+        "android_client_info": {
+          "package_name": "com.example.visca"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXFS0fmvQLkRsF-z3flles7SNLKe4nFbg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
