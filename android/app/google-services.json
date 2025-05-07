@@ -12,7 +12,20 @@
           "package_name": "com.example.visca"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "612956616408-7q9hi1038j962o0vggan932n33bnmd0n.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.visca",
+            "certificate_hash": "1240304259dd33ef439a4fff348d4fefb0fb2cb5"
+          }
+        },
+        {
+          "client_id": "612956616408-ndthi6s6c3mk8rhi4p2of5cskp3ujvho.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBXFS0fmvQLkRsF-z3flles7SNLKe4nFbg"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "612956616408-ndthi6s6c3mk8rhi4p2of5cskp3ujvho.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
