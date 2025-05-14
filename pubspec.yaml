@@ -40,6 +40,8 @@ dependencies:
   cloud_firestore: ^5.6.7
   flutter_spinkit: ^5.2.1
   google_sign_in: ^6.3.0
+  flutter_lucide: ^1.6.2 
+  curved_labeled_navigation_bar: ^2.0.6
 
 dev_dependencies:
   flutter_test:
