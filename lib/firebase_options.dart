@@ -59,4 +59,5 @@ class DefaultFirebaseOptions {
     projectId: 'visca-face',
     storageBucket: 'visca-face.firebasestorage.app',
   );
+
 }
