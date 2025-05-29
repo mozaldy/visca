@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
-
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visca/components/bottom_navbar.dart';
+import 'package:visca/screens/login_screen.dart';
 import 'package:visca/screens/room_screen.dart';
 import 'firebase_options.dart';
 
@@ -36,7 +38,7 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: BottomNavBar(),
+      home: LoginScreen(),
     );
   }
 }
