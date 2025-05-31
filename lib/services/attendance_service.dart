@@ -71,9 +71,8 @@ class AttendanceService {
   }
 
   Future<int> getAttendanceCountForRoom(String roomId) async {
-    final snapshot = await _attendanceCollection
-        .where('roomId', isEqualTo: roomId)
-        .get();
+    final snapshot =
+        await _attendanceCollection.where('roomId', isEqualTo: roomId).get();
 
     return snapshot.docs.length;
   }
@@ -90,6 +89,27 @@ class AttendanceService {
     await _attendanceCollection.doc(attendanceId).update({
       'checkedInUsers': FieldValue.arrayUnion([userId]),
       'totalCheckedIn': FieldValue.increment(1),
+    });
+  }
+
+  // Add this method for removing users if needed
+  Future<void> removeCheckedInUser(String attendanceId, String userId) async {
+    await _attendanceCollection.doc(attendanceId).update({
+      'checkedInUsers': FieldValue.arrayRemove([userId]),
+      'totalCheckedIn': FieldValue.increment(-1),
+    });
+  }
+
+  // Add this method for real-time updates
+  Stream<AttendanceModel> getAttendanceStream(String attendanceId) {
+    return _attendanceCollection.doc(attendanceId).snapshots().map((doc) {
+      if (!doc.exists) {
+        throw Exception('Attendance not found');
+      }
+      return AttendanceModel.fromMap(
+        doc.id,
+        doc.data() as Map<String, dynamic>,
+      );
     });
   }
 }

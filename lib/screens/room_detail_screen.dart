@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:visca/components/attendance_card.dart';
 import 'package:visca/components/create_attendance_dialog.dart';
+import 'package:visca/components/delete_attendance.dart';
 import 'package:visca/models/attendance_model.dart';
+import 'package:visca/screens/room_detail_member.dart';
 import 'package:visca/services/attendance_service.dart';
 import '../models/room_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +20,23 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   final AttendanceService attendanceService = AttendanceService();
+  final List<Map<String, String>> attendances = [];
+
+  void _showDeleteDialog(int index) {
+    showDialog(
+      context: context,
+      builder:
+          (_) => DeleteAttendanceDialog(
+            onCancel: () => Navigator.pop(context),
+            onDelete: () {
+              setState(() {
+                attendances.removeAt(index);
+              });
+              Navigator.pop(context);
+            },
+          ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +52,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
               return AttendanceDialog(
                 roomId: widget.room.id,
                 onSave: (attendance) async {
-                  await AttendanceService()
-                      .createAttendance(attendance);
+                  await AttendanceService().createAttendance(attendance);
                   setState(() {});
                 },
               );
@@ -108,38 +126,50 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   const SizedBox(width: 8),
 
                   // Members Detail button
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          // aksi members detail
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            // aksi members detail
+                            print('Member details pressed');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) =>
+                                        RoomDetailMemberPage(room: widget.room),
+                              ),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            visualDensity: const VisualDensity(
+                              horizontal: 1,
+                              vertical: 1,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            minimumSize: Size.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
                           ),
-                          visualDensity: const VisualDensity(
-                            horizontal: 1,
-                            vertical: 1,
-                          ),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          minimumSize: Size.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
+                          child: const Text(
+                            'Members Detail',
+                            style: TextStyle(
+                              color: Color(0xFF01313C),
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                        child: const Text(
-                          'Members Detail',
-                          style: TextStyle(
-                            color: Color(0xFF01313C),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -164,7 +194,9 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 ),
                 Expanded(
                   child: FutureBuilder<List<AttendanceModel>>(
-                    future: attendanceService.getAttendancesByRoom(widget.room.id),
+                    future: attendanceService.getAttendancesByRoom(
+                      widget.room.id,
+                    ),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -199,7 +231,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                 // Aksi edit
                               },
                               onDelete: () {
-                                // Aksi delete
+                                _showDeleteDialog(index);
                               },
                             ),
                           );

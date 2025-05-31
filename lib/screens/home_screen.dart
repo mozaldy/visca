@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:visca/components/onGoing_attendance_card';
+import 'package:visca/components/onGoing_attendance_card.dart';
+import 'package:visca/features/face_recognition/face_detector_view.dart';
 import 'package:visca/models/attendance_model.dart';
+import 'package:visca/models/room_model.dart';
 import 'package:visca/providers/user_provider.dart';
 import 'package:visca/services/attendance_service.dart';
+import 'package:visca/services/room_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -13,6 +16,15 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  void _onOpenCamera(AttendanceModel attendance) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FaceDetectorView(attendance: attendance),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userState = ref.watch(userProvider);
@@ -175,14 +187,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 itemCount: attendanceList.length,
                                 itemBuilder: (context, index) {
                                   final attendance = attendanceList[index];
-                                  return OnGoingAttendanceCard(
-                                    attendance: attendance,
-                                    totalMembers: 20,
-                                    onClose: () {
-                                      // logika tutup absensi
-                                    },
-                                    onOpenCamera: () {
-                                      // logika buka kamera
+                                  return FutureBuilder<RoomModel?>(
+                                    future: RoomService().getRoom(
+                                      attendance.roomId,
+                                    ), // You'll need to implement this
+                                    builder: (context, roomSnapshot) {
+                                      if (roomSnapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return OnGoingAttendanceCard(
+                                          attendance: attendance,
+                                          totalMembers: 0, // Loading state
+                                          onClose: () {
+                                            // logika tutup absensi
+                                          },
+                                          onOpenCamera:
+                                              () => _onOpenCamera(attendance),
+                                        );
+                                      }
+
+                                      final room = roomSnapshot.data;
+                                      return OnGoingAttendanceCard(
+                                        attendance: attendance,
+                                        totalMembers:
+                                            room?.members.length ??
+                                            0, // Changed this line
+                                        onClose: () {
+                                          // logika tutup absensi
+                                        },
+                                        onOpenCamera:
+                                            () => _onOpenCamera(attendance),
+                                      );
                                     },
                                   );
                                 },
