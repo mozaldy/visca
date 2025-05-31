@@ -1,0 +1,71 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "1:7529424724794210522",
+      "lastPropertyId": "3:7973591833592041287",
+      "name": "FaceEmbedding",
+      "properties": [
+        {
+          "id": "1:5323872912872406967",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:1835482835479113487",
+          "name": "embedding",
+          "type": 28,
+          "flags": 8,
+          "indexId": "2:1686990518505970108"
+        },
+        {
+          "id": "3:7973591833592041287",
+          "name": "personId",
+          "type": 11,
+          "flags": 520,
+          "indexId": "1:4591934408013799559",
+          "relationTarget": "Person"
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "2:6346522834891474357",
+      "lastPropertyId": "3:1539436127280537721",
+      "name": "Person",
+      "properties": [
+        {
+          "id": "1:3624807356773581036",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7640852113564403917",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "3:1539436127280537721",
+          "name": "createdAt",
+          "type": 10
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "lastEntityId": "2:6346522834891474357",
+  "lastIndexId": "2:1686990518505970108",
+  "lastRelationId": "0:0",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [],
+  "retiredIndexUids": [],
+  "retiredPropertyUids": [],
+  "retiredRelationUids": [],
+  "version": 1
+}
