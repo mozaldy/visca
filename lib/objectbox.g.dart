@@ -55,7 +55,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(2, 6346522834891474357),
     name: 'Person',
-    lastPropertyId: const obx_int.IdUid(3, 1539436127280537721),
+    lastPropertyId: const obx_int.IdUid(4, 7522260250615792543),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -68,13 +68,21 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(2, 7640852113564403917),
         name: 'name',
         type: 9,
-        flags: 0,
+        flags: 2048,
+        indexId: const obx_int.IdUid(3, 1583944388075088930),
       ),
       obx_int.ModelProperty(
         id: const obx_int.IdUid(3, 1539436127280537721),
         name: 'createdAt',
         type: 10,
         flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 7522260250615792543),
+        name: 'roomId',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(4, 7269432741619826037),
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -121,7 +129,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
   final model = obx_int.ModelInfo(
     entities: _entities,
     lastEntityId: const obx_int.IdUid(2, 6346522834891474357),
-    lastIndexId: const obx_int.IdUid(2, 1686990518505970108),
+    lastIndexId: const obx_int.IdUid(4, 7269432741619826037),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [],
@@ -182,10 +190,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (Person object, fb.Builder fbb) {
         final nameOffset = fbb.writeString(object.name);
-        fbb.startTable(4);
+        final roomIdOffset = fbb.writeString(object.roomId);
+        fbb.startTable(5);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addInt64(2, object.createdAt.millisecondsSinceEpoch);
+        fbb.addOffset(3, roomIdOffset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -198,8 +208,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
           const fb.Int64Reader().vTableGet(buffer, rootOffset, 8, 0),
         );
-        final object = Person(name: nameParam, createdAt: createdAtParam)
-          ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        final roomIdParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 10, '');
+        final object = Person(
+          name: nameParam,
+          createdAt: createdAtParam,
+          roomId: roomIdParam,
+        )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
       },
@@ -242,5 +258,10 @@ class Person_ {
   /// See [Person.createdAt].
   static final createdAt = obx.QueryDateProperty<Person>(
     _entities[1].properties[2],
+  );
+
+  /// See [Person.roomId].
+  static final roomId = obx.QueryStringProperty<Person>(
+    _entities[1].properties[3],
   );
 }

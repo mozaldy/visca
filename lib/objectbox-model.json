@@ -34,7 +34,7 @@
     },
     {
       "id": "2:6346522834891474357",
-      "lastPropertyId": "3:1539436127280537721",
+      "lastPropertyId": "4:7522260250615792543",
       "name": "Person",
       "properties": [
         {
@@ -46,19 +46,28 @@
         {
           "id": "2:7640852113564403917",
           "name": "name",
-          "type": 9
+          "type": 9,
+          "flags": 2048,
+          "indexId": "3:1583944388075088930"
         },
         {
           "id": "3:1539436127280537721",
           "name": "createdAt",
           "type": 10
+        },
+        {
+          "id": "4:7522260250615792543",
+          "name": "roomId",
+          "type": 9,
+          "flags": 2048,
+          "indexId": "4:7269432741619826037"
         }
       ],
       "relations": []
     }
   ],
   "lastEntityId": "2:6346522834891474357",
-  "lastIndexId": "2:1686990518505970108",
+  "lastIndexId": "4:7269432741619826037",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,

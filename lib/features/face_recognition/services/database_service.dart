@@ -26,11 +26,58 @@ class DatabaseService {
     _faceEmbeddingBox = _store!.box<FaceEmbedding>();
   }
 
-  Future<Person> addPerson(String name) async {
+  Future<Person> addPerson(String name, String roomId) async {
     await initialize();
-    final person = Person(name: name, createdAt: DateTime.now());
+    final person = Person(
+      name: name, // Name is the identifier
+      createdAt: DateTime.now(),
+      roomId: roomId,
+    );
     person.id = _personBox!.put(person);
     return person;
+  }
+
+  // Fetches locally registered faces for recognition in a room
+  Future<List<Person>> getLocallyRegisteredPersonsForRoom(String roomId) async {
+    await initialize();
+    final query = _personBox!.query(Person_.roomId.equals(roomId)).build();
+    final persons = query.find();
+    query.close();
+    return persons;
+  }
+
+  // Check if a specific member (by name) already has a local face registration for a room
+  Future<Person?> getLocalRegistrationStatus(String name, String roomId) async {
+    await initialize();
+    final query =
+        _personBox!
+            .query(
+              Person_.name
+                  .equals(name) // Query by name
+                  .and(Person_.roomId.equals(roomId)),
+            )
+            .build();
+    final result = query.findFirst();
+    query.close();
+    return result;
+  }
+
+  // deletePerson will still work fine if you pass the Person object fetched from ObjectBox
+  // as it uses person.id (the ObjectBox internal ID).
+  // If you wanted to delete by name + roomId, you'd query first, then remove.
+  // Example:
+  Future<void> deleteLocalFaceDataForMember(String name, String roomId) async {
+    await initialize();
+    final existingPerson = await getLocalRegistrationStatus(name, roomId);
+    if (existingPerson != null) {
+      // First delete all face embeddings for this person
+      final embeddings = await getFaceEmbeddingsForPerson(existingPerson);
+      if (embeddings.isNotEmpty) {
+        _faceEmbeddingBox!.removeMany(embeddings.map((e) => e.id).toList());
+      }
+      // Then delete the person
+      _personBox!.remove(existingPerson.id);
+    }
   }
 
   Future<void> addFaceEmbedding(Person person, List<double> embedding) async {
@@ -99,19 +146,9 @@ class DatabaseService {
         nearestEmbedding.embedding,
       );
 
-      print(
-        'Cosine similarity: ${cosineSimilarity.toStringAsFixed(4)}, threshold: $threshold',
-      );
-      print('ObjectBox distance: ${nearestResult.score.toStringAsFixed(4)}');
-
-      // Match Kotlin logic: if distance > threshold, recognize the person
-      // Note: Kotlin uses > 0.4, so we use the same logic
       if (cosineSimilarity > threshold) {
         final person = nearestEmbedding.person.target;
         if (person != null) {
-          print(
-            'Recognized: ${person.name} with similarity ${cosineSimilarity.toStringAsFixed(4)}',
-          );
           return PersonMatchResult(
             person: person,
             similarity: cosineSimilarity,
@@ -131,62 +168,89 @@ class DatabaseService {
     }
   }
 
-  /// Enhanced method that returns multiple candidates for debugging
-  Future<List<PersonMatchResult>> getTopEmbeddingMatches(
-    List<double> queryEmbedding, {
-    double threshold = 0.3,
+  Future<PersonMatchResult?> getNearestEmbeddingPersonNameForRoom(
+    List<double> queryEmbedding,
+    String roomId, {
+    double threshold = 0.4,
     int maxResultCount = 10,
   }) async {
     await initialize();
 
-    final queryVector = Float32List.fromList(
-      queryEmbedding.map((e) => e.toDouble()).toList(),
-    );
+    // First get all persons registered in this room
+    final roomPersons = await getLocallyRegisteredPersonsForRoom(roomId);
 
-    final query =
-        _faceEmbeddingBox!
-            .query(
-              FaceEmbedding_.embedding.nearestNeighborsF32(
-                queryVector,
-                maxResultCount,
-              ),
-            )
-            .build();
+    if (roomPersons.isEmpty) {
+      print('No persons registered for room: $roomId');
+      return null;
+    }
 
-    try {
-      final results = query.findWithScores();
-      final matches = <PersonMatchResult>[];
+    print('Searching among ${roomPersons.length} persons in room: $roomId');
 
-      for (final result in results) {
-        final embedding = result.object;
-        final cosineSimilarity = _cosineDistance(
-          queryEmbedding,
-          embedding.embedding,
-        );
+    // Get all face embeddings for persons in this room
+    List<FaceEmbedding> roomEmbeddings = [];
+    for (final person in roomPersons) {
+      final personEmbeddings = await getFaceEmbeddingsForPerson(person);
+      roomEmbeddings.addAll(personEmbeddings);
+    }
 
+    if (roomEmbeddings.isEmpty) {
+      print('No face embeddings found for room: $roomId');
+      return null;
+    }
+
+    print('Found ${roomEmbeddings.length} face embeddings in room');
+
+    // Find the best match among room embeddings
+    PersonMatchResult? bestMatch;
+    double bestSimilarity = threshold;
+
+    for (final embedding in roomEmbeddings) {
+      final similarity = _cosineDistance(queryEmbedding, embedding.embedding);
+
+      if (similarity > bestSimilarity) {
         final person = embedding.person.target;
         if (person != null) {
-          matches.add(
-            PersonMatchResult(
-              person: person,
-              similarity: cosineSimilarity,
-              distance: result.score,
-              cosineSimilarity: cosineSimilarity,
-            ),
+          bestMatch = PersonMatchResult(
+            person: person,
+            similarity: similarity,
+            distance: 0.0, // We're not using ObjectBox nearest neighbors here
+            cosineSimilarity: similarity,
           );
+          bestSimilarity = similarity;
         }
       }
-
-      // Sort by cosine similarity (highest first)
-      matches.sort((a, b) => b.cosineSimilarity.compareTo(a.cosineSimilarity));
-
-      // Filter by threshold
-      return matches
-          .where((match) => match.cosineSimilarity > threshold)
-          .toList();
-    } finally {
-      query.close();
     }
+
+    if (bestMatch != null) {
+      print(
+        'Best match in room: ${bestMatch.person.name} with similarity: ${bestMatch.similarity.toStringAsFixed(4)}',
+      );
+    } else {
+      print('No match found above threshold $threshold in room: $roomId');
+    }
+
+    return bestMatch;
+  }
+
+  // Also add a method to get count of registered faces per room
+  Future<int> getRegisteredFaceCountForRoom(String roomId) async {
+    await initialize();
+    final roomPersons = await getLocallyRegisteredPersonsForRoom(roomId);
+    int totalEmbeddings = 0;
+
+    for (final person in roomPersons) {
+      final embeddings = await getFaceEmbeddingsForPerson(person);
+      totalEmbeddings += embeddings.length;
+    }
+
+    return totalEmbeddings;
+  }
+
+  // Get list of all registered names in a room
+  Future<List<String>> getRegisteredNamesInRoom(String roomId) async {
+    await initialize();
+    final roomPersons = await getLocallyRegisteredPersonsForRoom(roomId);
+    return roomPersons.map((person) => person.name).toList();
   }
 
   /// Calculate cosine distance EXACTLY matching the Kotlin implementation
@@ -219,34 +283,6 @@ class DatabaseService {
     }
 
     return product / (mag1 * mag2);
-  }
-
-  /// Debug method to compare embeddings
-  Future<void> debugEmbeddingComparison(List<double> queryEmbedding) async {
-    await initialize();
-
-    final allEmbeddings = _faceEmbeddingBox!.getAll();
-    print('=== Embedding Comparison Debug ===');
-    print('Query embedding length: ${queryEmbedding.length}');
-    print('Query embedding first 5 values: ${queryEmbedding.take(5).toList()}');
-    print(
-      'Query embedding last 5 values: ${queryEmbedding.skip(queryEmbedding.length - 5).toList()}',
-    );
-    print('Total embeddings in database: ${allEmbeddings.length}');
-
-    for (int i = 0; i < min(3, allEmbeddings.length); i++) {
-      final embedding = allEmbeddings[i];
-      final person = embedding.person.target;
-      final similarity = _cosineDistance(queryEmbedding, embedding.embedding);
-
-      print('Embedding $i (${person?.name ?? 'Unknown'}):');
-      print('  Length: ${embedding.embedding.length}');
-      print('  First 5: ${embedding.embedding.take(5).toList()}');
-      print(
-        '  Last 5: ${embedding.embedding.skip(embedding.embedding.length - 5).toList()}',
-      );
-      print('  Cosine similarity: ${similarity.toStringAsFixed(6)}');
-    }
   }
 
   /// Verify embedding quality before storing

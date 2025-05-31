@@ -26,9 +26,6 @@ class FaceNetService {
       );
 
       _isInitialized = true;
-      print('FaceNet model loaded successfully');
-      print('Input shape: ${_interpreter!.getInputTensor(0).shape}');
-      print('Output shape: ${_interpreter!.getOutputTensor(0).shape}');
     } catch (e) {
       print('Error loading FaceNet model: $e');
       throw e;
@@ -138,84 +135,6 @@ class FaceNetService {
     }
 
     return buffer;
-  }
-
-  /// Debug method to verify preprocessing matches Kotlin
-  void debugPreprocessing(img.Image image) {
-    print('=== Debug Preprocessing ===');
-    print('Original image size: ${image.width}x${image.height}');
-
-    final resized = img.copyResize(
-      image,
-      width: inputImageSize,
-      height: inputImageSize,
-      interpolation: img.Interpolation.linear,
-    );
-    print('Resized image size: ${resized.width}x${resized.height}');
-
-    // Sample a few pixels to verify values
-    print('Sample pixels from resized image:');
-    for (int i = 0; i < min(5, resized.width); i++) {
-      final pixel = resized.getPixel(i, 0);
-      print('Pixel ($i,0): R=${pixel.r}, G=${pixel.g}, B=${pixel.b}');
-    }
-
-    // Test pixel extraction order
-    final pixelValues = <double>[];
-    for (int y = 0; y < min(3, resized.height); y++) {
-      for (int x = 0; x < min(3, resized.width); x++) {
-        final pixel = resized.getPixel(x, y);
-        pixelValues.addAll([
-          pixel.r.toDouble(),
-          pixel.g.toDouble(),
-          pixel.b.toDouble(),
-        ]);
-      }
-    }
-    print('First 9 pixel values (RGB): ${pixelValues.take(9).toList()}');
-
-    // Test standardization
-    final standardized = _standardizePixels([255.0, 128.0, 0.0, 64.0, 192.0]);
-    print(
-      'Standardization test: ${standardized.map((v) => v.toStringAsFixed(3)).toList()}',
-    );
-
-    // Test the full preprocessing pipeline
-    final buffer = _convertImageToByteBuffer(resized);
-    final float32View = buffer.asFloat32List();
-    print('Buffer size: ${float32View.length}');
-    print(
-      'First 10 values: ${float32View.take(10).map((v) => v.toStringAsFixed(3)).toList()}',
-    );
-    print(
-      'Last 10 values: ${float32View.skip(float32View.length - 10).map((v) => v.toStringAsFixed(3)).toList()}',
-    );
-
-    // Calculate stats
-    final mean = float32View.reduce((a, b) => a + b) / float32View.length;
-    final variance =
-        float32View.map((v) => pow(v - mean, 2)).reduce((a, b) => a + b) /
-        float32View.length;
-    print(
-      'Processed data - Mean: ${mean.toStringAsFixed(6)}, Std: ${sqrt(variance).toStringAsFixed(6)}',
-    );
-  }
-
-  /// Get model input/output information for debugging
-  void printModelInfo() {
-    if (_interpreter == null) return;
-
-    print('=== Model Information ===');
-    print('Input tensors: ${_interpreter!.getInputTensors().length}');
-    print('Output tensors: ${_interpreter!.getOutputTensors().length}');
-
-    final inputTensor = _interpreter!.getInputTensor(0);
-    print('Input tensor shape: ${inputTensor.shape}');
-    print('Input tensor type: ${inputTensor.type}');
-
-    final outputTensor = _interpreter!.getOutputTensor(0);
-    print('Output tensor shape: ${outputTensor.shape}');
-    print('Output tensor type: ${outputTensor.type}');
   }
 
   /// Compare two embeddings using cosine similarity (matches Kotlin logic)

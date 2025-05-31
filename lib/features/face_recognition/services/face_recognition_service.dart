@@ -27,82 +27,95 @@ class FaceRecognitionResult {
 }
 
 class FaceRecognitionService {
-  static const double _recognitionThreshold = 0.7; // Match Kotlin exactly
+  static const double _recognitionThreshold = 0.7;
 
   final FaceNetService _faceNetService;
   final DatabaseService _databaseService;
   bool _isInitialized = false;
 
-  // Constructor that takes the existing services
+  // Add room filtering
+  String? _currentRoomId;
+
   FaceRecognitionService({
     FaceNetService? faceNetService,
     DatabaseService? databaseService,
   }) : _faceNetService = faceNetService ?? FaceNetService(),
        _databaseService = databaseService ?? DatabaseService.instance;
 
-  Future<void> initialize() async {
-    if (_isInitialized) return;
+  Future<void> initialize({String? roomId}) async {
+    if (_isInitialized && _currentRoomId == roomId) return;
 
     try {
-      // Initialize the existing services
       await _faceNetService.initialize();
       await _databaseService.initialize();
 
+      _currentRoomId = roomId;
       _isInitialized = true;
-      print('FaceRecognitionService initialized successfully');
+
+      if (roomId != null) {
+        final registeredCount = await _databaseService
+            .getRegisteredFaceCountForRoom(roomId);
+        final registeredNames = await _databaseService.getRegisteredNamesInRoom(
+          roomId,
+        );
+        print(
+          'Initialized for room: $roomId with $registeredCount face embeddings',
+        );
+        print('Registered names: ${registeredNames.join(", ")}');
+      }
     } catch (e) {
       print('Error initializing FaceRecognitionService: $e');
       throw e;
     }
   }
 
-  /// Main recognition method - uses FaceProcessor and FaceNetService
+  /// Main recognition method with room filtering
   Future<List<FaceRecognitionResult>> recognizeFaces(
-    InputImage inputImage,
-  ) async {
+    InputImage inputImage, {
+    String? roomId,
+  }) async {
     if (!_isInitialized) {
       throw StateError('Service not initialized');
     }
 
+    // Use provided roomId or the one set during initialization
+    final targetRoomId = roomId ?? _currentRoomId;
+
+    if (targetRoomId == null) {
+      throw StateError('No room ID specified for recognition');
+    }
+
     try {
-      // Step 1: Detect faces using FaceProcessor (same as AddPersonView)
       final faces = await FaceProcessor.detectFaces(inputImage);
       if (faces.isEmpty) {
         return [];
       }
 
-      print('Detected ${faces.length} faces');
-
-      // Step 2: Extract face images using FaceProcessor (same as AddPersonView)
       final faceImages = await FaceProcessor.extractFacesFromInputImage(
         inputImage,
       );
       if (faceImages.length != faces.length) {
-        print(
-          'Warning: Detected ${faces.length} faces but extracted ${faceImages.length} face images',
-        );
+        print('Warning: Face count mismatch');
       }
 
       final results = <FaceRecognitionResult>[];
 
-      // Step 3: Process each extracted face
       for (int i = 0; i < faceImages.length && i < faces.length; i++) {
         try {
           final faceImage = faceImages[i];
           final face = faces[i];
 
-          // Step 3a: Generate embedding using the existing FaceNetService
-          // This ensures exact same preprocessing as AddPersonView
           final embedding = await _faceNetService.generateEmbedding(faceImage);
 
-          // Step 3b: Validate embedding
           if (!_faceNetService.validateEmbedding(embedding)) {
-            print('Invalid embedding generated for face $i');
             continue;
           }
 
-          // Step 3c: Perform recognition
-          final recognitionResult = await _performRecognition(embedding);
+          // Use room-filtered recognition
+          final recognitionResult = await _performRoomFilteredRecognition(
+            embedding,
+            targetRoomId,
+          );
 
           results.add(
             FaceRecognitionResult(
@@ -113,15 +126,6 @@ class FaceRecognitionService {
               embedding: embedding,
             ),
           );
-
-          // Debug output
-          if (recognitionResult != null) {
-            print(
-              'Recognized: ${recognitionResult.person.name} with similarity ${recognitionResult.cosineSimilarity.toStringAsFixed(4)}',
-            );
-          } else {
-            print('Face $i not recognized (similarity below threshold)');
-          }
         } catch (e) {
           print('Error processing face $i: $e');
           results.add(
@@ -142,67 +146,50 @@ class FaceRecognitionService {
     }
   }
 
-  /// Perform recognition using database - matches Kotlin logic exactly
-  Future<PersonMatchResult?> _performRecognition(
+  /// Perform recognition only within the specified room
+  Future<PersonMatchResult?> _performRoomFilteredRecognition(
     List<double> queryEmbedding,
+    String roomId,
   ) async {
     try {
-      // Use the exact same method as Kotlin with same threshold
-      final result = await _databaseService.getNearestEmbeddingPersonName(
-        queryEmbedding,
-        threshold: _recognitionThreshold, // 0.4 - matches Kotlin exactly
-        maxResultCount: 10,
-      );
+      final result = await _databaseService
+          .getNearestEmbeddingPersonNameForRoom(
+            queryEmbedding,
+            roomId,
+            threshold: _recognitionThreshold,
+            maxResultCount: 10,
+          );
 
       return result;
     } catch (e) {
-      print('Error in recognition: $e');
+      print('Error in room-filtered recognition: $e');
       return null;
     }
   }
 
-  /// Debug method to compare embeddings between training and recognition
-  Future<void> debugEmbeddingConsistency(InputImage inputImage) async {
-    print('=== Debugging Embedding Consistency ===');
+  // Get room statistics
+  Future<Map<String, dynamic>> getRoomStats(String roomId) async {
+    await _databaseService.initialize();
 
-    try {
-      final faceImages = await FaceProcessor.extractFacesFromInputImage(
-        inputImage,
-      );
+    final registeredPersons = await _databaseService
+        .getLocallyRegisteredPersonsForRoom(roomId);
+    final totalEmbeddings = await _databaseService
+        .getRegisteredFaceCountForRoom(roomId);
+    final registeredNames = await _databaseService.getRegisteredNamesInRoom(
+      roomId,
+    );
 
-      for (int i = 0; i < faceImages.length; i++) {
-        final faceImage = faceImages[i];
-
-        // Generate embedding using the same service as AddPersonView
-        final embedding = await _faceNetService.generateEmbedding(faceImage);
-
-        print('Face $i embedding:');
-        print('  Length: ${embedding.length}');
-        print(
-          '  First 5 values: ${embedding.take(5).map((v) => v.toStringAsFixed(6)).toList()}',
-        );
-        print(
-          '  Last 5 values: ${embedding.skip(embedding.length - 5).map((v) => v.toStringAsFixed(6)).toList()}',
-        );
-
-        final magnitude = _faceNetService.cosineSimilarity(
-          embedding,
-          embedding,
-        ); // Should be 1.0
-        print(
-          '  Self similarity (should be 1.0): ${magnitude.toStringAsFixed(6)}',
-        );
-
-        // Compare with database embeddings
-        await _databaseService.debugEmbeddingComparison(embedding);
-      }
-    } catch (e) {
-      print('Error in debug: $e');
-    }
+    return {
+      'roomId': roomId,
+      'registeredPersons': registeredPersons.length,
+      'totalEmbeddings': totalEmbeddings,
+      'registeredNames': registeredNames,
+    };
   }
 
   void dispose() {
     _faceNetService.dispose();
     _isInitialized = false;
+    _currentRoomId = null;
   }
 }
