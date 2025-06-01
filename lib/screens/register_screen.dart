@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visca/screens/main_screen.dart';
 import '../providers/user_provider.dart';
-import '../components/bottom_waves.dart';
+import 'package:flutter_custom_clippers/flutter_custom_clippers.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -53,57 +53,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // wave 1
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Opacity(
-              opacity: 0.5,
-              child: ClipPath(
-                clipper: BottomWaveClipper1(),
-                child: Container(
-                  height: 150,
-                  color: Color.fromARGB(255, 134, 185, 176),
-                ),
-              ),
-            ),
-          ),
-
-          // wave 2
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Opacity(
-              opacity: 0.5,
-              child: ClipPath(
-                clipper: BottomWaveClipper2(),
-                child: Container(
-                  height: 150,
-                  color: Color.fromARGB(255, 76, 114, 115),
-                ),
-              ),
-            ),
-          ),
-
-          // wave 3
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Opacity(
-              opacity: 0.5,
-              child: ClipPath(
-                clipper: BottomWaveClipper3(),
-                child: Container(
-                  height: 150,
-                  color: Color.fromARGB(255, 1, 49, 60),
-                ),
-              ),
-            ),
-          ),
-
           Center(
             child: SingleChildScrollView(
               child: Padding(
@@ -198,6 +147,48 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+
+          // Layer 1 (paling belakang)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: ClipPath(
+              clipper: WaveClipperOne(reverse: true),
+              child: Container(
+                height: 140,
+                color: const Color.fromARGB(255, 134, 185, 176),
+              ),
+            ),
+          ),
+
+          // Layer 2 (tengah)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: ClipPath(
+              clipper: WaveClipperTwo(reverse: true),
+              child: Container(
+                height: 130,
+                color: const Color.fromARGB(255, 76, 114, 115),
+              ),
+            ),
+          ),
+
+          // Layer 3 (paling depan)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: ClipPath(
+              clipper: WaveClipperOne(reverse: true),
+              child: Container(
+                height: 100,
+                color: const Color.fromARGB(255, 1, 49, 60),
               ),
             ),
           ),
