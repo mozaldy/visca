@@ -76,7 +76,6 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                                 final roomId = await roomService.createRoom(
                                   newRoom,
                                 );
-                                print('Room created with ID: $roomId');
                                 setState(
                                   () {},
                                 ); 
