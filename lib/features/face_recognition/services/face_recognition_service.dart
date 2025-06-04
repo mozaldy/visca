@@ -167,7 +167,6 @@ class FaceRecognitionService {
     }
   }
 
-  // Get room statistics
   Future<Map<String, dynamic>> getRoomStats(String roomId) async {
     await _databaseService.initialize();
 

@@ -108,33 +108,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
 
                   // Search Bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF9BBEBF),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: const TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Track Your Attendance',
-                          hintStyle: TextStyle(color: Colors.white),
-                          border: InputBorder.none,
-                          icon: Icon(Icons.search, color: Colors.white),
-                        ),
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-
                   const SizedBox(height: 30),
                 ],
               ),

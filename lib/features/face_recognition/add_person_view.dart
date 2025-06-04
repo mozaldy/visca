@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 
-import 'services/database_service.dart'; // Your ObjectBox DatabaseService
-import 'services/facenet_service.dart'; // Your FaceNetService
-import 'utils/face_processor.dart'; // Your FaceProcessor utility
+import 'services/database_service.dart';
+import 'services/facenet_service.dart';
+import 'utils/face_processor.dart';
 import 'package:visca/services/room_service.dart';
 
 class AddPersonView extends StatefulWidget {
@@ -26,9 +26,8 @@ class _AddPersonViewState extends State<AddPersonView> {
   late final RoomService _roomService;
 
   List<img.Image> _detectedFaces = [];
-  bool _isProcessing = false; // For saving the person data
-  bool _isExtractingFaces =
-      false; // For picking/taking photo and detecting faces
+  bool _isProcessing = false;
+  bool _isExtractingFaces = false;
   bool _servicesInitialized = false;
 
   @override
@@ -64,7 +63,6 @@ class _AddPersonViewState extends State<AddPersonView> {
   @override
   void dispose() {
     _nameController.dispose();
-    // Consider disposing _faceNetService if it has a dispose method
     super.dispose();
   }
 

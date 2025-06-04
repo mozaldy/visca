@@ -30,21 +30,16 @@ class _FaceDetectorViewState extends State<FaceDetectorView> {
   var _cameraLensDirection = CameraLensDirection.front;
   List<FaceRecognitionResult> _results = [];
 
-  // Room statistics
   Map<String, dynamic>? _roomStats;
 
-  // Track recent check-ins to prevent spam
   final Map<String, DateTime> _lastCheckInAttempt = {};
 
-  // Current attendance state
   late AttendanceModel _currentAttendance;
   StreamSubscription<AttendanceModel>? _attendanceSubscription;
 
-  // UI feedback
   String? _lastCheckedInUser;
   DateTime? _lastCheckInTime;
 
-  // Custom painter variables
   Size _imageSize = Size.zero;
   InputImageRotation _rotation = InputImageRotation.rotation0deg;
   CustomPaint? _customPaint;
