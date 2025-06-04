@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:visca/components/attendance_card.dart';
+import 'package:visca/components/close_session_dialog.dart';
 import 'package:visca/components/create_attendance_dialog.dart';
 import 'package:visca/components/delete_attendance.dart';
 import 'package:visca/components/onGoing_attendance_card.dart';
@@ -39,6 +40,18 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             },
           ),
     );
+  }
+
+  Future<bool> showCloseSessionDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => CloseSessionDialog(
+            onClose: () => Navigator.of(context).pop(true),
+            onCancel: () => Navigator.of(context).pop(false),
+          ),
+    );
+    return result == true;
   }
 
   @override
@@ -112,25 +125,30 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
                   // Room name & date
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.room.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        top: 12,
+                      ), // Atur margin atas di sini
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.room.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Created at: $formattedDate',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
+                          Text(
+                            'Created at: $formattedDate',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
 
@@ -143,10 +161,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: () {
-                            // aksi members detail
-                            print('Member details pressed');
-                            Navigator.push(
+                          onPressed: () async {
+                            final updatedRoom = await Navigator.push<RoomModel>(
                               context,
                               MaterialPageRoute(
                                 builder:
@@ -154,6 +170,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                         RoomDetailMemberPage(room: widget.room),
                               ),
                             );
+
+                            if (updatedRoom != null) {
+                              setState(() {
+                                widget.room.members.clear();
+                                widget.room.members.addAll(updatedRoom.members);
+                              });
+                            }
                           },
                           style: TextButton.styleFrom(
                             backgroundColor: Colors.white,
@@ -262,15 +285,20 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                       totalMembers: widget.room.members.length,
 
                                       onClose: () async {
-                                        print(
-                                          'Updating closedAt for: ${attendance.id}',
-                                        );
-                                        await AttendanceService()
-                                            .updateAttendanceClosedAt(
-                                              attendance.id,
-                                            );
-                                        print('Done updating.');
-                                        setState(() {});
+                                        WidgetsBinding.instance
+                                            .addPostFrameCallback((_) async {
+                                              final shouldClose =
+                                                  await showCloseSessionDialog(
+                                                    context,
+                                                  );
+                                              if (shouldClose) {
+                                                await AttendanceService()
+                                                    .updateAttendanceClosedAt(
+                                                      attendance.id,
+                                                    );
+                                                setState(() {});
+                                              }
+                                            });
                                       },
                                       onOpenCamera:
                                           () => _onOpenCamera(attendance),
@@ -282,18 +310,22 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                                     attendance: attendance,
                                     totalMembers: room?.members.length ?? 0,
                                     onClose: () async {
-                                      print(
-                                        'Updating closedAt for: ${attendance.id}',
-                                      );
-                                      await AttendanceService()
-                                          .updateAttendanceClosedAt(
-                                            attendance.id,
-                                          );
-                                      print('Done updating.');
-                                      setState(
-                                        () {},
-                                      ); // refresh tampilan jika perlu
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback((_) async {
+                                            final shouldClose =
+                                                await showCloseSessionDialog(
+                                                  context,
+                                                );
+                                            if (shouldClose) {
+                                              await AttendanceService()
+                                                  .updateAttendanceClosedAt(
+                                                    attendance.id,
+                                                  );
+                                              setState(() {});
+                                            }
+                                          });
                                     },
+
                                     onOpenCamera:
                                         () => _onOpenCamera(attendance),
                                   );

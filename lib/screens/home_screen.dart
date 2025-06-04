@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visca/components/close_session_dialog.dart';
 import 'package:visca/components/onGoing_attendance_card.dart';
 import 'package:visca/features/face_recognition/face_detector_view.dart';
 import 'package:visca/models/attendance_model.dart';
@@ -23,6 +24,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         builder: (context) => FaceDetectorView(attendance: attendance),
       ),
     );
+  }
+
+  Future<bool> showCloseSessionDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => CloseSessionDialog(
+            onClose: () => Navigator.of(context).pop(true),
+            onCancel: () => Navigator.of(context).pop(false),
+          ),
+    );
+    return result == true;
   }
 
   @override
@@ -198,17 +211,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           attendance: attendance,
                                           totalMembers: 0, // Loading state
                                           onClose: () async {
-                                            print(
-                                              'Updating closedAt for: ${attendance.id}',
-                                            );
-                                            await AttendanceService()
-                                                .updateAttendanceClosedAt(
-                                                  attendance.id,
-                                                );
-                                            print('Done updating.');
-                                            setState(
-                                              () {},
-                                            ); // refresh tampilan jika perlu
+                                            WidgetsBinding.instance
+                                                .addPostFrameCallback((
+                                                  _,
+                                                ) async {
+                                                  final shouldClose =
+                                                      await showCloseSessionDialog(
+                                                        context,
+                                                      );
+                                                  if (shouldClose) {
+                                                    await AttendanceService()
+                                                        .updateAttendanceClosedAt(
+                                                          attendance.id,
+                                                        );
+                                                    setState(() {});
+                                                  }
+                                                });
                                           },
                                           onOpenCamera:
                                               () => _onOpenCamera(attendance),
@@ -222,17 +240,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             room?.members.length ??
                                             0, // Changed this line
                                         onClose: () async {
-                                          print(
-                                            'Updating closedAt for: ${attendance.id}',
-                                          );
-                                          await AttendanceService()
-                                              .updateAttendanceClosedAt(
-                                                attendance.id,
-                                              );
-                                          print('Done updating.');
-                                          setState(
-                                            () {},
-                                          ); // refresh tampilan jika perlu
+                                          WidgetsBinding.instance
+                                              .addPostFrameCallback((_) async {
+                                                final shouldClose =
+                                                    await showCloseSessionDialog(
+                                                      context,
+                                                    );
+                                                if (shouldClose) {
+                                                  await AttendanceService()
+                                                      .updateAttendanceClosedAt(
+                                                        attendance.id,
+                                                      );
+                                                  setState(() {});
+                                                }
+                                              });
                                         },
                                         onOpenCamera:
                                             () => _onOpenCamera(attendance),
