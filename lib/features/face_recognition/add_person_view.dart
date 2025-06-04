@@ -7,7 +7,7 @@ import 'package:image/image.dart' as img;
 import 'services/database_service.dart'; // Your ObjectBox DatabaseService
 import 'services/facenet_service.dart'; // Your FaceNetService
 import 'utils/face_processor.dart'; // Your FaceProcessor utility
-import 'package:visca/services/room_service.dart'; // Add this import
+import 'package:visca/services/room_service.dart';
 
 class AddPersonView extends StatefulWidget {
   final String roomId;
@@ -23,11 +23,12 @@ class _AddPersonViewState extends State<AddPersonView> {
   final _imagePicker = ImagePicker();
   late final FaceNetService _faceNetService;
   late final DatabaseService _databaseService;
-  late final RoomService _roomService; // Add RoomService
+  late final RoomService _roomService;
 
   List<img.Image> _detectedFaces = [];
-  bool _isProcessing = false;
-  bool _isExtractingFaces = false;
+  bool _isProcessing = false; // For saving the person data
+  bool _isExtractingFaces =
+      false; // For picking/taking photo and detecting faces
   bool _servicesInitialized = false;
 
   @override
@@ -39,7 +40,7 @@ class _AddPersonViewState extends State<AddPersonView> {
   Future<void> _initializeServices() async {
     _faceNetService = FaceNetService();
     _databaseService = DatabaseService.instance;
-    _roomService = RoomService(); // Initialize RoomService
+    _roomService = RoomService();
 
     try {
       await _faceNetService.initialize();
@@ -63,6 +64,7 @@ class _AddPersonViewState extends State<AddPersonView> {
   @override
   void dispose() {
     _nameController.dispose();
+    // Consider disposing _faceNetService if it has a dispose method
     super.dispose();
   }
 
@@ -78,7 +80,61 @@ class _AddPersonViewState extends State<AddPersonView> {
     }
   }
 
-  Future<void> _selectImages() async {
+  Future<void> _processPickedFiles(List<XFile> pickedFiles) async {
+    if (pickedFiles.isNotEmpty && mounted) {
+      setState(() {
+        _isExtractingFaces = true;
+        _detectedFaces.clear();
+      });
+
+      List<img.Image> allFacesFromSelection = [];
+      for (final xFile in pickedFiles) {
+        if (!mounted) break;
+        try {
+          final facesInOneImage = await FaceProcessor.extractFacesFromImage(
+            File(xFile.path),
+          );
+          allFacesFromSelection.addAll(facesInOneImage);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error processing image ${xFile.name}: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _detectedFaces = allFacesFromSelection;
+        });
+        if (allFacesFromSelection.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No faces detected in the selected images. Try different images.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${allFacesFromSelection.length} face(s) detected.',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _selectImagesFromGallery() async {
     if (!_servicesInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -88,74 +144,65 @@ class _AddPersonViewState extends State<AddPersonView> {
       );
       return;
     }
-    if (_isExtractingFaces) return;
+    if (_isExtractingFaces || _isProcessing) return;
 
     try {
       final List<XFile> pickedFiles = await _imagePicker.pickMultiImage(
-        imageQuality: 70,
+        imageQuality: 70, // Consider making this configurable or higher
       );
-
-      if (pickedFiles.isNotEmpty && mounted) {
-        setState(() {
-          _isExtractingFaces = true;
-          _detectedFaces.clear();
-        });
-
-        List<img.Image> allFacesFromSelection = [];
-        for (final xFile in pickedFiles) {
-          if (!mounted) break;
-          try {
-            final facesInOneImage = await FaceProcessor.extractFacesFromImage(
-              File(xFile.path),
-            );
-            allFacesFromSelection.addAll(facesInOneImage);
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Error processing image ${xFile.name}: $e'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
-        }
-
-        if (mounted) {
-          setState(() {
-            _detectedFaces = allFacesFromSelection;
-            _isExtractingFaces = false;
-          });
-          if (allFacesFromSelection.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'No faces detected in the selected images. Try different images.',
-                ),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '${allFacesFromSelection.length} face(s) detected.',
-                ),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        }
-      }
+      await _processPickedFiles(pickedFiles);
     } catch (e) {
+      // Error already handled by pickMultiImage typically, but catch any other exceptions
       if (mounted) {
-        setState(() => _isExtractingFaces = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error selecting images: $e'),
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExtractingFaces = false);
+      }
+    }
+  }
+
+  Future<void> _takePhotoWithCamera() async {
+    if (!_servicesInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Services not ready. Please wait.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    if (_isExtractingFaces || _isProcessing) return;
+
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 70,
+      );
+      if (pickedFile != null) {
+        await _processPickedFiles([pickedFile]);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error taking photo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExtractingFaces = false;
+        });
       }
     }
   }
@@ -196,7 +243,6 @@ class _AddPersonViewState extends State<AddPersonView> {
     if (mounted) setState(() => _isProcessing = true);
 
     try {
-      // Step 1: Add person to local ObjectBox database
       final person = await _databaseService.addPerson(
         currentName,
         widget.roomId,
@@ -204,9 +250,10 @@ class _AddPersonViewState extends State<AddPersonView> {
 
       int embeddingsAddedCount = 0;
       for (final faceImage in _detectedFaces) {
-        if (!mounted) break;
+        if (!mounted) break; // Check mounted state in loop
         final embedding = await _faceNetService.generateEmbedding(faceImage);
         if (embedding.isNotEmpty) {
+          // Ensure embedding is valid
           bool added = await _databaseService.addFaceEmbeddingWithValidation(
             person,
             embedding,
@@ -218,50 +265,38 @@ class _AddPersonViewState extends State<AddPersonView> {
       if (!mounted) return;
 
       if (embeddingsAddedCount > 0) {
-        // Step 2: Add member name to Firebase room if local registration was successful
         try {
           await _roomService.addMemberNameToRoom(widget.roomId, currentName);
-          print(
-            'Successfully added "$currentName" to Firebase room "${widget.roomId}"',
-          );
         } catch (firebaseError) {
-          // Log the Firebase error but don't fail the entire operation
-          // since local face data was successfully saved
-          print(
-            'Warning: Failed to add "$currentName" to Firebase room "${widget.roomId}": $firebaseError',
-          );
-
-          // Optionally show a warning to the user
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Local face data saved successfully, but failed to sync with cloud: $firebaseError',
+                  'Local face data saved, but failed to sync with cloud: $firebaseError. Please try adding member to room manually if needed.',
                 ),
                 backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 4),
+                duration: const Duration(seconds: 5),
               ),
             );
           }
         }
 
-        // Step 3: Show success message and navigate back
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Face data for "$currentName" ($embeddingsAddedCount face(s)) registered successfully for room ${widget.roomId}.',
+                'Face data for "$currentName" ($embeddingsAddedCount face(s)) registered locally for room ${widget.roomId}.',
               ),
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pop(context, currentName);
+          Navigator.pop(context, currentName); // Pass back success indicator
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Could not generate valid embeddings for the detected faces. Please try with clearer images.',
+              'Could not generate valid embeddings. Try clearer images.',
             ),
             backgroundColor: Colors.orange,
           ),
@@ -319,36 +354,79 @@ class _AddPersonViewState extends State<AddPersonView> {
               enabled: !_isProcessing && !_isExtractingFaces,
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon:
-                  _isExtractingFaces
-                      ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                      : const Icon(Icons.collections),
-              label: Text(
-                _isExtractingFaces
-                    ? 'Detecting Faces...'
-                    : 'Select Images to Detect Faces',
-              ),
-              onPressed:
-                  _isProcessing || _isExtractingFaces ? null : _selectImages,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon:
+                        _isExtractingFaces
+                            ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : const Icon(Icons.photo_library),
+                    label: const Text('From Gallery'),
+                    onPressed:
+                        _isProcessing || _isExtractingFaces
+                            ? null
+                            : _selectImagesFromGallery,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon:
+                        _isExtractingFaces
+                            ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : const Icon(Icons.camera_alt),
+                    label: const Text('Take Photo'),
+                    onPressed:
+                        _isProcessing || _isExtractingFaces
+                            ? null
+                            : _takePhotoWithCamera,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            if (_detectedFaces.isNotEmpty)
-              Text(
-                'Detected Faces: ${_detectedFaces.length} (Tap image to remove)',
-                style: Theme.of(context).textTheme.titleMedium,
+            if (_isExtractingFaces)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 8),
+                      Text("Detecting faces..."),
+                    ],
+                  ),
+                ),
               ),
-            const SizedBox(height: 8),
+            if (_detectedFaces.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  'Detected Faces: ${_detectedFaces.length} (Tap image to remove)',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
             if (_detectedFaces.isNotEmpty)
               Expanded(
                 child: GridView.builder(
@@ -405,7 +483,8 @@ class _AddPersonViewState extends State<AddPersonView> {
                   },
                 ),
               )
-            else if (!_isExtractingFaces)
+            else if (!_isExtractingFaces &&
+                !_isProcessing) // Show only if not busy
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -427,7 +506,7 @@ class _AddPersonViewState extends State<AddPersonView> {
                           style: TextStyle(color: Colors.grey),
                         ),
                         Text(
-                          'Use "Select Images" to begin.',
+                          'Use "From Gallery" or "Take Photo" to begin.',
                           style: TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                       ],
