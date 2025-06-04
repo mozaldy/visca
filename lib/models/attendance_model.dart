@@ -49,4 +49,5 @@ class AttendanceModel {
       'checkedInUsers': checkedInUsers,
     };
   }
+
 }

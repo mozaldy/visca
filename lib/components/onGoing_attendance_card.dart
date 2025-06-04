@@ -6,7 +6,7 @@ import 'package:visca/models/room_model.dart';
 class OnGoingAttendanceCard extends StatelessWidget {
   final AttendanceModel attendance;
   final int totalMembers;
-  final VoidCallback onClose;
+  final Future<void> Function() onClose;
   final VoidCallback onOpenCamera;
 
   const OnGoingAttendanceCard({

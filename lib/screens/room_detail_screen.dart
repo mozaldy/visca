@@ -3,9 +3,13 @@ import 'package:intl/intl.dart';
 import 'package:visca/components/attendance_card.dart';
 import 'package:visca/components/create_attendance_dialog.dart';
 import 'package:visca/components/delete_attendance.dart';
+import 'package:visca/components/onGoing_attendance_card.dart';
+import 'package:visca/features/face_recognition/face_detector_view.dart';
 import 'package:visca/models/attendance_model.dart';
+import 'package:visca/screens/attendance_detail_screen.dart';
 import 'package:visca/screens/room_detail_member.dart';
 import 'package:visca/services/attendance_service.dart';
+import 'package:visca/services/room_service.dart';
 import '../models/room_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,16 +26,15 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   final AttendanceService attendanceService = AttendanceService();
   final List<Map<String, String>> attendances = [];
 
-  void _showDeleteDialog(int index) {
+  void _showDeleteDialog(String attendanceId) {
     showDialog(
       context: context,
       builder:
           (_) => DeleteAttendanceDialog(
             onCancel: () => Navigator.pop(context),
-            onDelete: () {
-              setState(() {
-                attendances.removeAt(index);
-              });
+            onDelete: () async {
+              await attendanceService.deleteAttendance(attendanceId);
+              setState(() {});
               Navigator.pop(context);
             },
           ),
@@ -41,6 +44,14 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final formattedDate = DateFormat('dd/MM/yy').format(widget.room.createdAt);
+    void _onOpenCamera(AttendanceModel attendance) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FaceDetectorView(attendance: attendance),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -176,71 +187,215 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             ),
           ),
 
-          // Attendance history
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text(
-                    "Attendance History",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF01313C),
-                    ),
-                  ),
+            child: Container(
+              color: const Color(0xFF8FD7D9),
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                Expanded(
-                  child: FutureBuilder<List<AttendanceModel>>(
-                    future: attendanceService.getAttendancesByRoom(
-                      widget.room.id,
-                    ),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      if (snapshot.hasError) {
-                        return Center(child: Text('Error: ${snapshot.error}'));
-                      }
-
-                      final attendances = snapshot.data ?? [];
-
-                      if (attendances.isEmpty) {
-                        return const Center(
-                          child: Text('No attendance found.'),
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // On Going Title
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+                        child: Text(
+                          'On Going Attendance',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        itemCount: attendances.length,
-                        itemBuilder: (context, index) {
-                          final attendance = attendances[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: AttendanceCard(
-                              attendance: attendance,
-                              amountMembers: widget.room.members.length,
-                              onEdit: () {
-                                // Aksi edit
-                              },
-                              onDelete: () {
-                                _showDeleteDialog(index);
-                              },
-                            ),
+                      ),
+
+                      // On Going Attendance List
+                      FutureBuilder<List<AttendanceModel>>(
+                        future: AttendanceService().getActiveAttendancesByRoom(
+                          widget.room.id,
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          } else if (snapshot.hasError) {
+                            return Center(
+                              child: Text('Error: ${snapshot.error}'),
+                            );
+                          } else if (!snapshot.hasData ||
+                              snapshot.data!.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text('There is no attendance in progress'),
+                            );
+                          }
+
+                          final attendanceList = snapshot.data!;
+                          return ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            itemCount: attendanceList.length,
+                            itemBuilder: (context, index) {
+                              final attendance = attendanceList[index];
+
+                              return FutureBuilder<RoomModel?>(
+                                future: RoomService().getRoom(
+                                  attendance.roomId,
+                                ),
+
+                                builder: (context, roomSnapshot) {
+                                  print(
+                                    'Build tombol Close Session untuk ${attendance.id}',
+                                  );
+
+                                  if (roomSnapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return OnGoingAttendanceCard(
+                                      attendance: attendance,
+                                      totalMembers: widget.room.members.length,
+
+                                      onClose: () async {
+                                        print(
+                                          'Updating closedAt for: ${attendance.id}',
+                                        );
+                                        await AttendanceService()
+                                            .updateAttendanceClosedAt(
+                                              attendance.id,
+                                            );
+                                        print('Done updating.');
+                                        setState(() {});
+                                      },
+                                      onOpenCamera:
+                                          () => _onOpenCamera(attendance),
+                                    );
+                                  }
+
+                                  final room = roomSnapshot.data;
+                                  return OnGoingAttendanceCard(
+                                    attendance: attendance,
+                                    totalMembers: room?.members.length ?? 0,
+                                    onClose: () async {
+                                      print(
+                                        'Updating closedAt for: ${attendance.id}',
+                                      );
+                                      await AttendanceService()
+                                          .updateAttendanceClosedAt(
+                                            attendance.id,
+                                          );
+                                      print('Done updating.');
+                                      setState(
+                                        () {},
+                                      ); // refresh tampilan jika perlu
+                                    },
+                                    onOpenCamera:
+                                        () => _onOpenCamera(attendance),
+                                  );
+                                },
+                              );
+                            },
+                            separatorBuilder:
+                                (context, index) => const SizedBox(height: 12),
                           );
                         },
-                      );
-                    },
+                      ),
+
+                      // Attendance History Title
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+                        child: Text(
+                          "Attendance History",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF01313C),
+                          ),
+                        ),
+                      ),
+
+                      // Attendance History List
+                      FutureBuilder<List<AttendanceModel>>(
+                        future: attendanceService.getAttendancesByRoom(
+                          widget.room.id,
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text('Error: ${snapshot.error}'),
+                            );
+                          }
+
+                          // Ambil semua data attendances
+                          final allAttendances = snapshot.data ?? [];
+
+                          // Filter attendance yang closedAt <= sekarang
+                          final now = DateTime.now();
+                          final attendances =
+                              allAttendances.where((attendance) {
+                                if (attendance.closedAt == null) return false;
+                                return attendance.closedAt!.isBefore(now) ||
+                                    attendance.closedAt!.isAtSameMomentAs(now);
+                              }).toList();
+
+                          if (attendances.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text('No attendance found.'),
+                            );
+                          }
+
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: attendances.length,
+                            itemBuilder: (context, index) {
+                              final attendance = attendances[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: AttendanceCard(
+                                  attendance: attendance,
+                                  amountMembers: widget.room.members.length,
+                                  onEdit: () {
+                                    print(
+                                      "Navigating to AttendanceDetailScreen with: ${attendance.name}",
+                                    );
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => AttendanceDetailScreen(
+                                              attendance: attendance,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  onDelete: () {
+                                    _showDeleteDialog(attendance.id);
+                                  },
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ],

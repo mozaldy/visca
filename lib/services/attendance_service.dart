@@ -50,6 +50,30 @@ class AttendanceService {
         .toList();
   }
 
+  Future<List<AttendanceModel>> getActiveAttendancesByRoom(
+    String roomId,
+  ) async {
+    final querySnapshot =
+        await _attendanceCollection
+            .where('roomId', isEqualTo: roomId)
+            .orderBy('openedAt', descending: true)
+            .get();
+    final now = DateTime.now();
+
+    return querySnapshot.docs
+        .map(
+          (doc) => AttendanceModel.fromMap(
+            doc.id,
+            doc.data() as Map<String, dynamic>,
+          ),
+        )
+        .where(
+          (attendance) =>
+              attendance.closedAt != null && attendance.closedAt.isAfter(now),
+        ) // filter aktif di Dart
+        .toList();
+  }
+
   Future<List<AttendanceModel>> getAttendancesByOwner(String ownerId) async {
     final snapshot =
         await _attendanceCollection.where('ownerId', isEqualTo: ownerId).get();
@@ -79,6 +103,12 @@ class AttendanceService {
 
   Future<void> updateAttendance(AttendanceModel attendance) async {
     await _attendanceCollection.doc(attendance.id).update(attendance.toMap());
+  }
+
+  Future<void> updateAttendanceClosedAt(String attendanceId) async {
+    await _attendanceCollection.doc(attendanceId).update({
+      'closedAt': Timestamp.fromDate(DateTime.now()),
+    });
   }
 
   Future<void> deleteAttendance(String attendanceId) async {

@@ -197,8 +197,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         return OnGoingAttendanceCard(
                                           attendance: attendance,
                                           totalMembers: 0, // Loading state
-                                          onClose: () {
-                                            // logika tutup absensi
+                                          onClose: () async {
+                                            print(
+                                              'Updating closedAt for: ${attendance.id}',
+                                            );
+                                            await AttendanceService()
+                                                .updateAttendanceClosedAt(
+                                                  attendance.id,
+                                                );
+                                            print('Done updating.');
+                                            setState(
+                                              () {},
+                                            ); // refresh tampilan jika perlu
                                           },
                                           onOpenCamera:
                                               () => _onOpenCamera(attendance),
@@ -211,8 +221,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         totalMembers:
                                             room?.members.length ??
                                             0, // Changed this line
-                                        onClose: () {
-                                          // logika tutup absensi
+                                        onClose: () async {
+                                          print(
+                                            'Updating closedAt for: ${attendance.id}',
+                                          );
+                                          await AttendanceService()
+                                              .updateAttendanceClosedAt(
+                                                attendance.id,
+                                              );
+                                          print('Done updating.');
+                                          setState(
+                                            () {},
+                                          ); // refresh tampilan jika perlu
                                         },
                                         onOpenCamera:
                                             () => _onOpenCamera(attendance),

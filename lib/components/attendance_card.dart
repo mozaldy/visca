@@ -28,11 +28,7 @@ class AttendanceCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
+          BoxShadow(color: Colors.black12, blurRadius: 3, offset: Offset(0, 1)),
         ],
       ),
       child: Row(
@@ -63,25 +59,23 @@ class AttendanceCard extends StatelessWidget {
           // Date
           Text(
             dateFormatted,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF4C7273),
-            ),
+            style: const TextStyle(fontSize: 16, color: Color(0xFF4C7273)),
           ),
 
           // More button
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'edit') {
+              if (value == 'detail') {
                 onEdit?.call();
               } else if (value == 'delete') {
                 onDelete?.call();
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete')),
-            ],
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(value: 'detail', child: Text('Detail')),
+                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
             icon: const Icon(Icons.more_vert, color: Colors.black54),
           ),
         ],
